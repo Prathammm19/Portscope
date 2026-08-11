@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PORTSCOPE // TCP Recon Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#0a1826;
+    --navy-panel:#0f2338;
+    --blueprint-line: rgba(120,180,210,0.14);
+    --cyan-bright:#5fd4e0;
+    --cyan-dim:#3e6e8e;
+    --amber:#ffb454;
+    --danger:#ff6b6b;
+    --ink:#dce8ee;
+    --ink-dim:#7d95a3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      linear-gradient(var(--blueprint-line) 1px, transparent 1px) 0 0/32px 32px,
+      linear-gradient(90deg, var(--blueprint-line) 1px, transparent 1px) 0 0/32px 32px,
+      var(--navy-deep);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    min-height:100vh;
+    padding:40px 20px 80px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  header{margin-bottom:36px;}
+  .eyebrow{
+    font-size:12px; letter-spacing:.28em; color:var(--cyan-dim); text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700; font-size:clamp(28px,5vw,44px);
+    margin:0 0 8px; color:var(--ink);
+    letter-spacing:-0.01em;
+  }
+  h1 span{color:var(--cyan-bright);}
+  .sub{color:var(--ink-dim); font-size:14px; max-width:560px; line-height:1.6;}
+
+  .panel{
+    background:var(--navy-panel);
+    border:1px solid rgba(120,180,210,0.25);
+    border-radius:2px;
+    padding:28px;
+    position:relative;
+    margin-bottom:28px;
+  }
+  .panel::before{
+    content:'';
+    position:absolute; top:0; left:0; width:18px; height:18px;
+    border-top:2px solid var(--cyan-bright); border-left:2px solid var(--cyan-bright);
+  }
+  .panel::after{
+    content:'';
+    position:absolute; bottom:0; right:0; width:18px; height:18px;
+    border-bottom:2px solid var(--cyan-bright); border-right:2px solid var(--cyan-bright);
+  }
+
+  label{
+    display:block; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--cyan-dim); margin-bottom:6px;
+  }
+  .row{display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px;}
+  @media (max-width:600px){ .row{grid-template-columns:1fr;} }
+
+  input[type=text]{
+    width:100%; background:var(--navy-deep); border:1px solid rgba(120,180,210,0.3);
+    color:var(--ink); font-family:'IBM Plex Mono', monospace; font-size:14px;
+    padding:11px 12px; border-radius:1px; outline:none; transition:border-color .15s;
+  }
+  input[type=text]:focus{border-color:var(--cyan-bright);}
+
+  .checkline{display:flex; align-items:center; gap:8px; margin:18px 0 22px; color:var(--ink-dim); font-size:13px;}
+  .checkline input{accent-color:var(--cyan-bright);}
+
+  button{
+    background:var(--cyan-bright); color:var(--navy-deep); border:none;
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:14px;
+    letter-spacing:.05em; text-transform:uppercase;
+    padding:13px 26px; border-radius:1px; cursor:pointer;
+    transition:transform .1s, box-shadow .15s;
+  }
+  button:hover{box-shadow:0 0 0 1px var(--cyan-bright), 0 0 18px rgba(95,212,224,0.35);}
+  button:active{transform:translateY(1px);}
+  button:disabled{opacity:.5; cursor:progress;}
+
+  .status{font-size:13px; color:var(--ink-dim); margin-top:14px; min-height:18px;}
+  .status.err{color:var(--danger);}
+
+  .readout{margin-top:8px;}
+  .meta{display:flex; justify-content:space-between; font-size:12px; color:var(--ink-dim); margin-bottom:12px; letter-spacing:.04em;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{
+    text-align:left; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--cyan-dim); border-bottom:1px solid rgba(120,180,210,0.25); padding:8px 10px;
+  }
+  tbody td{padding:9px 10px; border-bottom:1px solid rgba(120,180,210,0.1); vertical-align:top;}
+  tbody tr:hover{background:rgba(95,212,224,0.05);}
+  .port-num{color:var(--amber); font-weight:600;}
+  .state-open{color:var(--cyan-bright);}
+  .banner{color:var(--ink-dim); font-size:12px;}
+
+  .empty{color:var(--ink-dim); font-size:13px; padding:20px 0; text-align:center; border:1px dashed rgba(120,180,210,0.2);}
+
+  footer{margin-top:40px; font-size:11px; color:var(--ink-dim); line-height:1.7;}
+  footer strong{color:var(--amber);}
+
+  .scanning-line{
+    height:2px; width:100%; background:linear-gradient(90deg, transparent, var(--cyan-bright), transparent);
+    background-size:200% 100%; animation:sweep 1.2s linear infinite; margin-top:16px; display:none;
+  }
+  .scanning-line.active{display:block;}
+  @keyframes sweep{ from{background-position:200% 0;} to{background-position:-200% 0;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Network Reconnaissance Console</div>
+    <h1>PORT<span>SCOPE</span></h1>
+    <p class="sub">TCP connect scan + service fingerprinting, run from your browser. Only scan hosts you own or are authorized to test.</p>
+  </header>
+
+  <div class="panel">
+    <div class="row">
+      <div>
+        <label for="target">Target host</label>
+        <input type="text" id="target" placeholder="scanme.nmap.org or 127.0.0.1" value="scanme.nmap.org">
+      </div>
+      <div>
+        <label for="ports">Port range</label>
+        <input type="text" id="ports" placeholder="1-1024" value="20-25,53,80,443,3306,8080">
+      </div>
+    </div>
+    <div class="checkline">
+      <input type="checkbox" id="banner">
+      <label for="banner" style="margin:0; text-transform:none; letter-spacing:normal; font-size:13px; color:var(--ink-dim);">Attempt banner grab on open ports (slower)</label>
+    </div>
+    <button id="scanBtn" onclick="runScan()">Run Scan</button>
+    <div class="scanning-line" id="sweep"></div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="panel readout" id="results" style="display:none;">
+    <div class="meta">
+      <span id="metaTarget"></span>
+      <span id="metaCount"></span>
+    </div>
+    <div id="resultsBody"></div>
+  </div>
+
+  <footer>
+    <strong>Why the guardrails:</strong> this console caps scans to 500 ports per request and rate-limits requests
+    to prevent misuse as an open scanning relay. For learning port-by-port mechanics, run <code>port_scanner.py</code>
+    directly from the command line instead &mdash; it has no such caps for your own authorized targets.
+  </footer>
+</div>
+
+<script>
+async function runScan(){
+  const target = document.getElementById('target').value.trim();
+  const ports = document.getElementById('ports').value.trim();
+  const banner = document.getElementById('banner').checked;
+  const btn = document.getElementById('scanBtn');
+  const status = document.getElementById('status');
+  const sweep = document.getElementById('sweep');
+  const resultsPanel = document.getElementById('results');
+
+  if(!target){ status.textContent = 'Enter a target host.'; status.className='status err'; return; }
+
+  btn.disabled = true;
+  sweep.classList.add('active');
+  status.className = 'status';
+  status.textContent = 'Scanning ' + target + ' ...';
+  resultsPanel.style.display = 'none';
+
+  try{
+    const res = await fetch('/scan', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({target, ports, banner})
+    });
+    const data = await res.json();
+
+    if(!res.ok){
+      status.className = 'status err';
+      status.textContent = data.error || 'Scan failed.';
+      return;
+    }
+
+    status.textContent = '';
+    document.getElementById('metaTarget').textContent = 'TARGET: ' + data.target;
+    document.getElementById('metaCount').textContent = data.ports_scanned + ' PORTS SCANNED';
+
+    const body = document.getElementById('resultsBody');
+    if(data.open_ports.length === 0){
+      body.innerHTML = '<div class="empty">No open ports found in the given range.</div>';
+    }else{
+      let rows = data.open_ports.map(p => `
+        <tr>
+          <td class="port-num">${p.port}</td>
+          <td class="state-open">${p.state}</td>
+          <td>${p.service}</td>
+          <td class="banner">${p.banner ? p.banner.replace(/</g,'&lt;') : '&mdash;'}</td>
+        </tr>`).join('');
+      body.innerHTML = `
+        <table>
+          <thead><tr><th>Port</th><th>State</th><th>Service</th><th>Banner</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    }
+    resultsPanel.style.display = 'block';
+  }catch(e){
+    status.className = 'status err';
+    status.textContent = 'Request failed: ' + e.message;
+  }finally{
+    btn.disabled = false;
+    sweep.classList.remove('active');
+  }
+}
+</script>
+</body>
+</html>
